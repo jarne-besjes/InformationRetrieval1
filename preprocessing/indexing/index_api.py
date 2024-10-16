@@ -39,5 +39,5 @@ if __name__ == "__main__":
             postings_list = api.get_postings_list(term)
             tf = postings_list.get_term_frequency(doc_id)
             df = postings_list.get_document_frequency()
-            print(f"tf(doc: {doc_id}, term: {term_i}) = {tf}")
-            print(f"df(doc: {doc_id}, term: {term_i}) = {df}")
+            print(f"tf(doc: {doc_id}, term: {term}) = {tf}")
+            print(f"df(term: {term}) = {df}")
