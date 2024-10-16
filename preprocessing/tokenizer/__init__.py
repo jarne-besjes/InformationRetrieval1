@@ -1,2 +1,2 @@
 # Exports
-from tokenizer import Tokenizer, TokenStream
+from .tokenizer import Tokenizer, TokenStream

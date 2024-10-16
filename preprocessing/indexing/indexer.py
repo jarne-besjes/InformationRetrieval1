@@ -18,13 +18,14 @@ class PostingsListsDict:
         bisect.insort_left(self.dictionary[token][doc_id], pos)
         # self.dictionary[token][doc_id].append(pos)
 
-def serialize_to_disk(dictionary: PostingsListsDict):
-    # TODO: use something other than json as serialization format
+    def serialize_to_disk(self, folder_output_path: str):
+        # TODO: use something other than json as serialization format
 
-    # We sort the term-keys and the document-keys in the outputted json for determinism and efficient search
-    serialized = json.dumps(dictionary.dictionary, sort_keys=True)
-    with open('./dict.txt', 'w+') as dict_file:
-        dict_file.write(serialized)
+        # We sort the term-keys and the document-keys in the outputted json for determinism and efficient search
+        serialized = json.dumps(self.dictionary, sort_keys=True)
+        os.makedirs(folder_output_path, exist_ok=True)
+        with open(os.path.join(folder_output_path, 'dict.txt'), 'w+') as dict_file:
+            dict_file.write(serialized)
 
 class CorpusTokenizer:
 
@@ -34,21 +35,19 @@ class CorpusTokenizer:
             self.pos = pos
             self.doc_id = doc_id
 
-    def __init__(self, documents_paths: list[str]):
-        if len(documents_paths) == 0:
-            raise ValueError("documents list cannot be empty")
-        
-        self.doc_i = 0
-        self.doc_token_stream: TokenStream = Tokenizer.tokenize(documents_paths[self.doc_i])
-        self.documents_paths = documents_paths
+    def __init__(self, corpus: "Corpus"):
+        self.doc_ids = corpus.get_document_ids()
+        self.doc_id_i = 0 # index in self.doc_ids
+        self.doc_token_stream = None # filled in in _ensure_next_available
+        self.corpus = corpus
 
     # Returns True if this function managed to make another token available else False
     def _ensure_next_available(self) -> bool:
-        if self.doc_token_stream.has_next():
+        if self.doc_token_stream is not None and self.doc_token_stream.has_next():
             return True
-        elif self.doc_i < len(self.documents_paths)-1:
-            self.doc_i += 1
-            self.doc_token_stream = Tokenizer.tokenize(self.documents_paths[self.doc_i])
+        elif self.doc_id_i < len(self.doc_ids)-1:
+            self.doc_token_stream = Tokenizer.tokenize(self.corpus.get_doc_path(self.doc_ids[self.doc_id_i]))
+            self.doc_id_i += 1
             return self.doc_token_stream.has_next()
         else:
             return False
@@ -56,37 +55,72 @@ class CorpusTokenizer:
     def next(self) -> "Token | None":
         if not self._ensure_next_available():
             return None
+        assert(self.doc_token_stream is not None)
         token = self.doc_token_stream.next()
-        document_name = self.documents_paths[self.doc_i]
-        return CorpusTokenizer.Token(token.token, token.pos, self.get_doc_id_from_filename(document_name))
+        return CorpusTokenizer.Token(token.token, token.pos, self.doc_ids[self.doc_id_i])
 
-    @staticmethod
-    def get_doc_id_from_filename(filename: str) -> int:
-        parts = filename.split('_')
-        doc_id = parts[len(parts)-1][:-4] # strip .txt
-        return int(doc_id)
+class Corpus:
+    def __init__(self, corpus_path: str):
+        self.corpus_path = corpus_path
+        document_names = [f for f in os.listdir(corpus_path) if os.path.isfile(os.path.join(corpus_path, f))]
+        if len(document_names) == 0:
+            raise ValueError("documents list cannot be empty")
+        self.doc_id_to_doc_name: dict[int, str] = dict()
+        for doc in document_names:
+            if not doc.endswith('.txt'):
+                continue
+            # Exploit the fact that the file names contain a unique id after the underscore
+            parts = doc.split('_')
+            doc_id = int(parts[len(parts)-1][:-4]) # strip .txt
+            self.doc_id_to_doc_name[doc_id] = doc
 
-def make_inverted_index_spimi(token_stream: CorpusTokenizer):
-    MAX_TOKENS_BLOCK = 1_000_000
-    postings_lists_dict = PostingsListsDict()
-    cur_block_size = 0
-    while (token := token_stream.next()) != None:
-        postings_lists_dict.add_to_postings_list(token.token, token.pos, token.doc_id)
-        cur_block_size += 1
-        if cur_block_size > MAX_TOKENS_BLOCK:
-            serialize_to_disk(postings_lists_dict)
-            postings_lists_dict = PostingsListsDict()
-            cur_block_size = 0
-    if len(postings_lists_dict.dictionary.keys()) > 0:
-        serialize_to_disk(postings_lists_dict) 
+    def get_document_ids(self) -> list[int]:
+        return list(self.doc_id_to_doc_name.keys())
+    
+    def get_doc_name(self, doc_id: int):
+        return self.doc_id_to_doc_name[doc_id]
+    
+    def get_doc_path(self, doc_id: int):
+        return os.path.join(self.corpus_path, self.get_doc_name(doc_id))
+    
+    def serialize_to_disk(self, folder_output_path: str):
+        os.makedirs(folder_output_path, exist_ok=True)
+        with open(os.path.join(folder_output_path, 'corpus_meta.txt'), 'w+') as corpus_meta:
+            corpus_meta.write(json.dumps(self.doc_id_to_doc_name))
+
+class InvertedIndexGenerator:
+    """
+    :params: 
+        corpus_path: path to folder of the documents in the corpus
+    """
+    def __init__(self, corpus_path: str):
+        self.corpus = Corpus(corpus_path)
+        self.token_stream = CorpusTokenizer(self.corpus)
+
+    def generate_spimi(self, folder_output_path: str):
+        # Generate inverted index
+        MAX_TOKENS_BLOCK = 1_000_000
+        postings_lists_dict = PostingsListsDict()
+        cur_block_size = 0
+        while (token := self.token_stream.next()) != None:
+            postings_lists_dict.add_to_postings_list(token.token, token.pos, token.doc_id)
+            cur_block_size += 1
+            if cur_block_size > MAX_TOKENS_BLOCK:
+                postings_lists_dict.serialize_to_disk(folder_output_path)
+                postings_lists_dict = PostingsListsDict()
+                cur_block_size = 0
+        if len(postings_lists_dict.dictionary.keys()) > 0:
+            postings_lists_dict.serialize_to_disk(folder_output_path)
+        
+        # TODO: merge the blocks
+
+        # Write corpus meta data in a separate file
+        self.corpus.serialize_to_disk(folder_output_path)
+
 
 if __name__ == "__main__":
-    import os
-    print(print(os.getcwd()))
-    dir_path = './full_docs_small'
-    files = [dir_path + '/' + f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-    token_stream = CorpusTokenizer(files)
-    make_inverted_index_spimi(token_stream)
+    index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
+    index_gen.generate_spimi(folder_output_path='inverted_index')
 
 # while token_stream.has_next():
     #     postings_lists_dict = PostingsListsDict()
