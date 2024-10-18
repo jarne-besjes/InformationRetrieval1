@@ -15,29 +15,37 @@ class DocumentVectorizer:
         idf_weight = math.log10(N/df)
         return tf_weight * idf_weight
 
-    def compute_doc_vector(self, doc_id: int, N: int) -> np.array:
+    def compute_tf_vector(self, doc_id: int) -> np.array:
         # Computes the vector for a single document
         vocab = self.indexAPI.get_sorted_vocabulary()
         T = len(vocab)
-        doc_vector = np.empty(shape=(T, 1))
+        tf_vector = np.empty(shape=(T,))
         for term_i, term in enumerate(vocab):
             postings_list = self.indexAPI.get_postings_list(term)
             tf = postings_list.get_term_frequency(doc_id)
-            df = postings_list.get_document_frequency()
-            tf_idf_weight = self.tf_idf_weight(tf, df, N)
-            doc_vector[term_i,] = tf_idf_weight
-        return doc_vector
+            if tf == 0:
+                tf_vector[term_i] = 0
+            else:
+                tf_vector[term_i] = 1 + math.log10(tf)
+        return tf_vector
         
-
     def compute_doc_matrix(self) -> np.matrix:
         vocab = self.indexAPI.get_sorted_vocabulary()
         doc_ids = self.indexAPI.get_document_ids()
         T = len(vocab)
         N = len(doc_ids)
-        doc_matrix = np.empty(shape=(T, N))
+        doc_frequencies = np.empty(shape=(T, 1))
+        for term_i, term in enumerate(vocab):
+            postings_list = self.indexAPI.get_postings_list(term)
+            df = postings_list.get_document_frequency()
+            doc_frequencies[term_i] = math.log10(N/df)
+        doc_matrix = np.tile(doc_frequencies, N)
+        print(doc_matrix)
         for doc_id in doc_ids:
-            doc_vector = self.compute_doc_vector(doc_id, N)
-            doc_matrix[:, doc_id-1] = doc_vector[:, 0]
+            tf_vector = self.compute_tf_vector(doc_id)
+            col = doc_matrix[:, doc_id-1]
+            tf_idf_vector = np.multiply(col, tf_vector)
+            doc_matrix[:, doc_id-1] = tf_idf_vector
         np.save(self.out_path, doc_matrix)
 
 if __name__ == "__main__":
