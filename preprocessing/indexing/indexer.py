@@ -1,10 +1,13 @@
+from operator import pos
 from nltk.corpus.reader import documents
 from nltk.tag.brill import Pos
+from numpy import block
 from ..tokenizer import Tokenizer, TokenStream
 import json
 import bisect
 import os
 import os.path
+import ijson
 
 class PostingsListsDict:
     def __init__(self):
@@ -18,13 +21,13 @@ class PostingsListsDict:
         bisect.insort_left(self.dictionary[token][doc_id], pos)
         # self.dictionary[token][doc_id].append(pos)
 
-    def serialize_to_disk(self, folder_output_path: str):
+    def serialize_to_disk(self, folder_output_path: str, n: int):
         # TODO: use something other than json as serialization format
 
         # We sort the term-keys and the document-keys in the outputted json for determinism and efficient search
         serialized = json.dumps(self.dictionary, sort_keys=True)
         os.makedirs(folder_output_path, exist_ok=True)
-        with open(os.path.join(folder_output_path, 'dict.txt'), 'w+') as dict_file:
+        with open(os.path.join(folder_output_path, f'dict_{n}.txt'), 'w+') as dict_file:
             dict_file.write(serialized)
 
 class CorpusTokenizer:
@@ -98,25 +101,112 @@ class InvertedIndexGenerator:
         self.token_stream = CorpusTokenizer(self.corpus)
 
     def generate_spimi(self, folder_output_path: str):
+        # Have a clean-slate output folder
+        import shutil
+        shutil.rmtree(folder_output_path)
+
         # Generate inverted index
-        MAX_TOKENS_BLOCK = 1_000_000
+        MAX_TOKENS_BLOCK = 100_000
+
         postings_lists_dict = PostingsListsDict()
+        block_n = 0
+        
+        def serialize_inverted_index():
+            nonlocal postings_lists_dict
+            nonlocal block_n
+            postings_lists_dict.serialize_to_disk(os.path.join(folder_output_path, 'l0'), block_n)
+            block_n += 1
+        
         cur_block_size = 0
         while (token := self.token_stream.next()) != None:
             postings_lists_dict.add_to_postings_list(token.token, token.pos, token.doc_id)
             cur_block_size += 1
             if cur_block_size > MAX_TOKENS_BLOCK:
-                postings_lists_dict.serialize_to_disk(folder_output_path)
+                serialize_inverted_index()
                 postings_lists_dict = PostingsListsDict()
                 cur_block_size = 0
         if len(postings_lists_dict.dictionary.keys()) > 0:
-            postings_lists_dict.serialize_to_disk(folder_output_path)
+            serialize_inverted_index()
         
-        # TODO: merge the blocks
+        self.merge_all_blocks(0, folder_output_path)
 
         # Write corpus meta data in a separate file
         self.corpus.serialize_to_disk(folder_output_path)
+    
+    def merge(self, block0_path: str, block1_path: str, output_path: str, n: int) -> str:
+        output_file_name = os.path.join(output_path, f'block_{n}')
+        with open(block0_path, 'r') as block0_f:
+            with open(block1_path, 'r') as block1_f:
+                os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+                with open(output_file_name, 'w+') as output_f:
+                    postings_lists0 = ijson.kvitems(block0_f, '')
+                    postings_lists1 = ijson.kvitems(block1_f, '')
+                    list0 = next(postings_lists0, None) # list0[0] == term, list0[1] == postings_list
+                    list1 = next(postings_lists1, None)
 
+                    is_first = True
+
+                    def write_postings_list(term, postings_list, output_file):
+                        nonlocal is_first
+                        to_write =  '' if is_first else ','
+                        if is_first: is_first = False
+                        to_write += json.dumps({term: postings_list})[1:-1] # remove { }
+                        output_file.write(to_write + '\n')
+                    
+                    output_f.write('{')
+                    while True:
+                        if list0 is None:
+                            # dump rest of block1
+                            while list1 is not None:
+                                write_postings_list(list1[0], list1[1], output_f)
+                                list1 = next(postings_lists1, None)
+                            break
+                        if list1 is None:
+                            # dump rest of block0
+                            while list0 is not None:
+                                write_postings_list(list0[0], list0[1], output_f)
+                                list0 = next(postings_lists0, None)
+                            break
+                        if list0[0] < list1[0]:
+                            write_postings_list(list0[0], list0[1], output_f)
+                            list0 = next(postings_lists0, None)
+                        elif list1[0] < list0[0]:
+                            write_postings_list(list1[0], list1[1], output_f)
+                            list1 = next(postings_lists1, None)
+                        else:
+                            # t1 == t0 => merge lists
+                            import copy
+                            merged = copy.deepcopy(list0[1])
+                            for d1, positions in list1[1].items():
+                                if d1 in merged.keys():
+                                    merged[d1] += positions
+                                else:
+                                    merged[d1] = positions
+                            write_postings_list(list0[0], merged, output_f)
+                            list0 = next(postings_lists0, None)
+                            list1 = next(postings_lists1, None)
+                    output_f.write('}')
+                return output_file_name
+
+    def merge_all_blocks(self, level: int, output_path: str):
+        blocks_path = os.path.join(output_path, f'l{level}')
+        blocks = [os.path.join(blocks_path, f) for f in os.listdir(blocks_path) if os.path.isfile(os.path.join(blocks_path, f))]
+        
+        if len(blocks) == 1:
+            # Everything merged, we are done
+            return
+
+        # Create an empty dummy block to have an even number of blocks for the merge step
+        if len(blocks) % 2 != 0:
+            dummy_path = os.path.join(blocks_path, f'dummy_block')
+            with open(dummy_path, 'w+') as dummy_file:
+                dummy_file.write('{}')
+                blocks.append(dummy_path)
+                
+        merged_output_path = os.path.join(output_path, f'l{level+1}')
+        for i in range(0, len(blocks), 2):
+            self.merge(blocks[i], blocks[i+1], merged_output_path, i)
+        self.merge_all_blocks(level+1, output_path)
 
 if __name__ == "__main__":
     index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
