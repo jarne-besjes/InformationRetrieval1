@@ -2,13 +2,14 @@ import json
 import os
 
 class PostingsList:
-    def __init__(self, postings: dict[int, list[int]]):
+    def __init__(self, postings: dict[str, list[int]]):
         self._postings = postings
     
     def get_term_frequency(self, doc_id: int):
-        if doc_id not in self._postings:
+        doc_id_str = str(doc_id)
+        if doc_id_str not in self._postings:
             return 0
-        return len(self._postings[doc_id])
+        return len(self._postings[doc_id_str])
     
     def get_document_frequency(self):
         return len(self._postings.keys())
@@ -34,10 +35,21 @@ if __name__ == "__main__":
     api = IndexApi('inverted_index')
     vocab = api.get_sorted_vocabulary()
     doc_ids = api.get_document_ids()
-    for doc_id in doc_ids[:10]:
-        for term_i, term in enumerate(vocab):
-            postings_list = api.get_postings_list(term)
-            tf = postings_list.get_term_frequency(doc_id)
-            df = postings_list.get_document_frequency()
-            print(f"tf(doc: {doc_id}, term: {term}) = {tf}")
-            print(f"df(term: {term}) = {df}")
+
+    postings_list = api.get_postings_list('Science')
+    tf = postings_list.get_term_frequency(8)
+    pass
+
+    # for term_i, term in enumerate(vocab):
+    #     postings_list = api.get_postings_list(term)
+    #     tf = postings_list.get_term_frequency(doc_id)
+    #     df = postings_list.get_document_frequency()
+    #     print(f"tf(doc: {doc_id}, term: {term}) = {tf}")
+    #     print(f"df(term: {term}) = {df}")
+    # for doc_id in doc_ids[:10]:
+    #     for term_i, term in enumerate(vocab):
+    #         postings_list = api.get_postings_list(term)
+    #         tf = postings_list.get_term_frequency(doc_id)
+    #         df = postings_list.get_document_frequency()
+    #         print(f"tf(doc: {doc_id}, term: {term}) = {tf}")
+    #         print(f"df(term: {term}) = {df}")
