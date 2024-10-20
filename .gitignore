@@ -164,4 +164,5 @@ cython_debug/
 
 full_docs_small/
 inverted_index/
-doc_vectors.npy
+doc_vectors.npz
+queries/
