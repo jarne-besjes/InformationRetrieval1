@@ -65,6 +65,8 @@ class CorpusTokenizer:
             return None
         assert(self.doc_token_stream is not None)
         token = self.doc_token_stream.next()
+        while '{' in token.token:
+            token = self.doc_token_stream.next()
         return CorpusTokenizer.Token(token.token, token.pos, self.doc_ids[self.doc_id_i-1])
 
 class Corpus:

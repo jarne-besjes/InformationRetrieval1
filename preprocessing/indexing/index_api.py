@@ -42,6 +42,10 @@ if __name__ == "__main__":
     api = IndexApi('inverted_index')
     doc_ids = api.get_document_ids()
 
+    for term in api._dictionary.keys():
+        postings = api.get_postings_list(term)
+        print(postings._postings)
+
     postings = api.get_postings_list('crunch')
     tf = postings.get_term_frequency(1096)
     df = postings.get_document_frequency()
