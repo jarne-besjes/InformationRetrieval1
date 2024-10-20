@@ -142,12 +142,15 @@ class InvertedIndexGenerator:
         # Write corpus meta data in a separate file
         self.corpus.serialize_to_disk(folder_output_path)
     
-    def merge(self, block0_path: str, block1_path: str, output_path: str, n: int) -> str:
+    def merge(self, block0_path: str, block1_path: str, output_path: str, n: int, generate_dictionary: bool, dictionary_output_path: str) -> str:
         output_file_name = os.path.join(output_path, f'block_{n}')
         with open(block0_path, 'r') as block0_f:
             with open(block1_path, 'r') as block1_f:
                 os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
                 with open(output_file_name, 'w+') as output_f:
+
+                    dictionary: dict[str, int] = dict() # in-memory dictionary mapping term to byte offset of postings in inverted_index.json file
+                    
                     postings_lists0 = ijson.kvitems(block0_f, '')
                     postings_lists1 = ijson.kvitems(block1_f, '')
                     list0 = next(postings_lists0, None) # list0[0] == term, list0[1] == postings_list
@@ -157,9 +160,16 @@ class InvertedIndexGenerator:
 
                     def write_postings_list(term, postings_list, output_file):
                         nonlocal is_first
+
                         to_write =  '' if is_first else ','
                         if is_first: is_first = False
                         to_write += json.dumps({term: postings_list})[1:-1] # remove { }
+
+                        open_brace_index = to_write.find('{')
+                        open_brace_byte_offset = len(to_write[:open_brace_index].encode('utf-8'))
+
+                        dictionary[term] = output_file.tell() + open_brace_byte_offset
+
                         output_file.write(to_write + '\n')
                     
                     output_f.write('{')
@@ -195,6 +205,10 @@ class InvertedIndexGenerator:
                             list0 = next(postings_lists0, None)
                             list1 = next(postings_lists1, None)
                     output_f.write('}')
+                
+                if generate_dictionary:
+                    with open(os.path.join(dictionary_output_path, 'dict.json'), 'w+') as dict_f:
+                        dict_f.write(json.dumps(dictionary, sort_keys=True, indent=2))
                 return output_file_name
 
     def merge_all_blocks(self, level: int, output_path: str):
@@ -215,7 +229,7 @@ class InvertedIndexGenerator:
                 
         merged_output_path = os.path.join(output_path, f'l{level+1}')
         for i in range(0, len(blocks), 2):
-            self.merge(blocks[i], blocks[i+1], merged_output_path, i)
+            self.merge(blocks[i], blocks[i+1], merged_output_path, i, len(blocks)==2, output_path)
         self.merge_all_blocks(level+1, output_path)
 
 if __name__ == "__main__":
