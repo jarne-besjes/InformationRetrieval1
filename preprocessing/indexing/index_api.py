@@ -1,15 +1,15 @@
 import json
 import os
 
-class PostingsList:
-    def __init__(self, postings: dict[str, list[int]]):
+class Postings:
+    def __init__(self, postings: dict[str, int]):
         self._postings = postings
     
-    def get_term_frequency(self, doc_id: int):
+    def get_term_frequency(self, doc_id: int) -> int:
         doc_id_str = str(doc_id)
         if doc_id_str not in self._postings:
             return 0
-        return len(self._postings[doc_id_str])
+        return self._postings[doc_id_str]
     
     def get_document_frequency(self):
         return len(self._postings.keys())
@@ -17,7 +17,7 @@ class PostingsList:
 class IndexApi:
     def __init__(self, inverted_index_folder: str):
         self._index_file_path = inverted_index_folder
-        with open(os.path.join(inverted_index_folder, 'dict.txt') , 'r') as index_file:
+        with open(os.path.join(inverted_index_folder, 'inverted_index.json') , 'r') as index_file:
             self._dictionary = json.loads(index_file.read())
         with open(os.path.join(inverted_index_folder, 'corpus_meta.txt'), 'r') as corpus_meta:
             self._doc_id_to_doc_name = json.loads(corpus_meta.read())
@@ -25,8 +25,8 @@ class IndexApi:
     def get_sorted_vocabulary(self) -> list[str]:
         return sorted(self._dictionary.keys())
 
-    def get_postings_list(self, term: str) -> PostingsList:
-        return PostingsList(self._dictionary[term])
+    def get_postings(self, term: str) -> Postings:
+        return Postings(self._dictionary[term])
 
     def get_document_ids(self) -> list[int]:
         return [int(doc_id) for doc_id in self._doc_id_to_doc_name.keys()]
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     vocab = api.get_sorted_vocabulary()
     doc_ids = api.get_document_ids()
 
-    postings_list = api.get_postings_list('Science')
-    tf = postings_list.get_term_frequency(8)
+    postings = api.get_postings('Science')
+    tf = postings.get_term_frequency(1)
     pass
 
     # for term_i, term in enumerate(vocab):

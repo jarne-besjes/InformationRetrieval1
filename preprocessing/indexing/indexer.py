@@ -8,17 +8,22 @@ import bisect
 import os
 import os.path
 import ijson
+import shutil
+
 
 class PostingsListsDict:
     def __init__(self):
-        self.dictionary: dict[str, dict[int, list[int]]] = dict()
+        # self.dictionary: dict[str, dict[int, list[int]]] = dict()
+        self.dictionary: dict[str, dict[int, int]] = dict()
     
     def add_to_postings_list(self, token: str, pos: int, doc_id: int):
         if token not in self.dictionary.keys():
             self.dictionary[token] = dict()
         if doc_id not in self.dictionary[token].keys():
-            self.dictionary[token][doc_id] = list()
-        bisect.insort_left(self.dictionary[token][doc_id], pos)
+            # self.dictionary[token][doc_id] = list()
+            self.dictionary[token][doc_id] = 0
+        self.dictionary[token][doc_id] += 1
+        # bisect.insort_left(self.dictionary[token][doc_id], pos)
         # self.dictionary[token][doc_id].append(pos)
 
     def serialize_to_disk(self, folder_output_path: str, n: int):
@@ -60,7 +65,7 @@ class CorpusTokenizer:
             return None
         assert(self.doc_token_stream is not None)
         token = self.doc_token_stream.next()
-        return CorpusTokenizer.Token(token.token, token.pos, self.doc_ids[self.doc_id_i])
+        return CorpusTokenizer.Token(token.token, token.pos, self.doc_ids[self.doc_id_i-1])
 
 class Corpus:
     def __init__(self, corpus_path: str):
@@ -102,11 +107,10 @@ class InvertedIndexGenerator:
 
     def generate_spimi(self, folder_output_path: str):
         # Have a clean-slate output folder
-        import shutil
-        shutil.rmtree(folder_output_path)
+        shutil.rmtree(folder_output_path, ignore_errors=True)
 
         # Generate inverted index
-        MAX_TOKENS_BLOCK = 100_000
+        MAX_TOKENS_BLOCK = 10_000
 
         postings_lists_dict = PostingsListsDict()
         block_n = 0
@@ -194,6 +198,7 @@ class InvertedIndexGenerator:
         
         if len(blocks) == 1:
             # Everything merged, we are done
+            shutil.move(blocks[0], os.path.join(output_path, 'inverted_index.json'))
             return
 
         # Create an empty dummy block to have an even number of blocks for the merge step
@@ -211,34 +216,3 @@ class InvertedIndexGenerator:
 if __name__ == "__main__":
     index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
     index_gen.generate_spimi(folder_output_path='inverted_index')
-
-# while token_stream.has_next():
-    #     postings_lists_dict = PostingsListsDict()
-    #     tokens_processed = 0
-    #     while tokens_processed < MAX_TOKENS_BATCH and token_stream.has_next():
-    #         token = token_stream.next()
-    #         postings_lists_dict.data[token.token].append((token.doc_id, token.pos))
-    #         tokens_processed += 1
-        
-    #     serialize_to_disk(postings_lists_dict)
-
-        # doc_i = 0
-    # token_stream = tokenizer.Tokenizer.tokenize(documents[doc_i])
-    # tokens_left = True
-    # while tokens_left:
-    #     postings_lists_dict = PostingsListsDict()
-    #     tokens_processed = 0
-    #     while tokens_processed < MAX_TOKENS_BATCH:
-    #         # Get new token_stream if depleted
-    #         if not token_stream.has_next():
-    #             if doc_i != len(documents)-1:
-    #                 doc_i += 1
-    #                 token_stream = tokenizer.Tokenizer.tokenize(doc_i)
-    #             else:
-    #                 tokens_left = False
-    #                 break
-    #         token = token_stream.next()
-    #         postings_lists_dict.data[token.token].append((doc_i, token.pos))
-    #         tokens_processed += 1
-    #     serialize_to_disk(postings_lists_dict)
-    

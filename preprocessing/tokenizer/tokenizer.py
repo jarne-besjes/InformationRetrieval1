@@ -46,6 +46,6 @@ class Tokenizer:
         :param file_path: The path to the file to tokenize
         :return: TokenStream: A stream of tokens from the file
         """
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             text = file.read()
         return TokenStream(word_tokenize(text))
