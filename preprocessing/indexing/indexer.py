@@ -53,12 +53,13 @@ class CorpusTokenizer:
     def _ensure_next_available(self) -> bool:
         if self.doc_token_stream is not None and self.doc_token_stream.has_next():
             return True
-        elif self.doc_id_i < len(self.doc_ids)-1:
+        if self.doc_token_stream is None:
             self.doc_token_stream = Tokenizer.tokenize(self.corpus.get_doc_path(self.doc_ids[self.doc_id_i]))
             self.doc_id_i += 1
-            return self.doc_token_stream.has_next()
-        else:
-            return False
+        while not self.doc_token_stream.has_next() and self.doc_id_i < len(self.doc_ids):
+            self.doc_token_stream = Tokenizer.tokenize(self.corpus.get_doc_path(self.doc_ids[self.doc_id_i]))
+            self.doc_id_i += 1
+        return self.doc_token_stream.has_next()
 
     def next(self) -> "Token | None":
         if not self._ensure_next_available():
