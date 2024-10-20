@@ -20,11 +20,15 @@ class IndexApi:
         self._posings_lists_file = open(os.path.join(inverted_index_folder, 'inverted_index.json') , 'r')
         with open(os.path.join(inverted_index_folder, 'dict.json'), 'r') as dict_file:
             self._dictionary = json.loads(dict_file.read())
+            self._sorted_terms = sorted(self._dictionary.keys())
         with open(os.path.join(inverted_index_folder, 'corpus_meta.txt'), 'r') as corpus_meta:
             self._doc_id_to_doc_name = json.loads(corpus_meta.read())
 
     # def get_sorted_vocabulary(self) -> list[str]:
     #     return sorted(self._postings_lists.keys())
+
+    def get_sorted_vocabulary(self) -> list[str]:
+        return self._sorted_terms
 
     def get_postings_list(self, term: str) -> PostingsList:
         postings_list_file_pos = self._dictionary.get(term)
@@ -50,3 +54,5 @@ if __name__ == "__main__":
     tf = postings.get_term_frequency(1096)
     df = postings.get_document_frequency()
     print(tf, ' ', df)
+
+    print(api.get_sorted_vocabulary())

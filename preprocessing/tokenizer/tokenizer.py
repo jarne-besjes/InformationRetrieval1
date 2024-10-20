@@ -1,6 +1,6 @@
 import nltk.corpus
 from nltk.tokenize import word_tokenize
-
+nltk.download('stopwords')
 
 class Token:
     def __init__(self, token: str, pos: int):
