@@ -110,7 +110,7 @@ class InvertedIndexGenerator:
         shutil.rmtree(folder_output_path, ignore_errors=True)
 
         # Generate inverted index
-        MAX_TOKENS_BLOCK = 10_000
+        MAX_TOKENS_BLOCK = 100_000
 
         postings_lists_dict = PostingsListsDict()
         block_n = 0
@@ -130,6 +130,11 @@ class InvertedIndexGenerator:
                 postings_lists_dict = PostingsListsDict()
                 cur_block_size = 0
         if len(postings_lists_dict.dictionary.keys()) > 0:
+            serialize_inverted_index()
+
+        # Make an even amount of blocks to execute at least one merge step
+        if block_n % 2 != 0:
+            postings_lists_dict = PostingsListsDict()
             serialize_inverted_index()
         
         self.merge_all_blocks(0, folder_output_path)
