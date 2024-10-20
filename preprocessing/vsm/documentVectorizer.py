@@ -4,7 +4,7 @@ from ..indexing.index_api import IndexApi
 from scipy import sparse
 
 class DocumentVectorizer:
-    def __init__(self, index_path: str, out_path):
+    def __init__(self, index_path: str, out_path: str):
         self.indexAPI = IndexApi(index_path)
         self.out_path = out_path
 
@@ -12,7 +12,7 @@ class DocumentVectorizer:
         # Computes the tf vector for a single document
         vocab = self.indexAPI.get_sorted_vocabulary()
         T = len(vocab)
-        tf_vector = np.empty(shape=(T,))
+        tf_vector = np.zeros(shape=(T,))
         for term_i, term in enumerate(vocab):
             postings_list = self.indexAPI.get_postings_list(term)
             tf = postings_list.get_term_frequency(doc_id)
@@ -27,13 +27,13 @@ class DocumentVectorizer:
         doc_ids = self.indexAPI.get_document_ids()
         T = len(vocab)
         N = len(doc_ids)
-        doc_frequencies = np.empty(shape=(T, 1))
+        doc_frequencies = np.zeros(shape=(T, 1))
         # Compute document frequencies and initialize
         # matrix to N times idf vector
         for term_i, term in enumerate(vocab):
             postings_list = self.indexAPI.get_postings_list(term)
             df = postings_list.get_document_frequency()
-            doc_frequencies[term_i] = math.log10(N/df)
+            doc_frequencies[term_i, :] = math.log10(N/df)
         doc_matrix = np.tile(doc_frequencies, N)
         # For each doc compute term frequencies and multiply
         # tf vector element-wise with idf vector (= tf-idf)
