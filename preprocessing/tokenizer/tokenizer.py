@@ -1,3 +1,5 @@
+import re
+
 import nltk.corpus
 from nltk.tokenize import word_tokenize
 nltk.download('stopwords')
@@ -70,6 +72,9 @@ class Tokenizer:
                 text = file.read()
         else:
             text = input
+        # Preprocess text
+        # split words connected by capitals (e.g. cityOfLondon -> [city, Of, London])
+        text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
         if lower_case:
             text = text.lower()
         if remove_punctuation_marks:
@@ -83,3 +88,8 @@ class Tokenizer:
             stemmer = nltk.stem.PorterStemmer()
             tokens = [stemmer.stem(token) for token in tokens]
         return TokenStream(tokens)
+
+if __name__ == '__main__':
+    stream = Tokenizer.tokenize('crunchPasta, i like crunchyFood! I like different types, roads and huggers?, DCRF', file_input=False)
+    while stream.has_next():
+        print(stream.next())
