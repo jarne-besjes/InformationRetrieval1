@@ -52,11 +52,12 @@ class Tokenizer:
         return [token for token in tokens if token not in stop_words]
 
     @staticmethod
-    def tokenize(file_path, lower_case=True, remove_stop_words=True, stemming=True,
+    def tokenize(input, file_input=True, lower_case=True, remove_stop_words=True, stemming=True,
                  remove_punctuation_marks=True, unknown_character_removal=True) -> TokenStream:
         """
         Tokenize the text in the file at the given path
-        :param file_path: The path to the file to tokenize
+        :param input: The path to the file to tokenize
+        :param file_input: Whether the input is a file path or a string
         :param lower_case: Whether to convert the tokens to lowercase
         :param remove_stop_words: Whether to remove stop words from the tokens
         :param stemming: Whether to apply stemming to the tokens
@@ -64,14 +65,17 @@ class Tokenizer:
         :param unknown_character_removal: Whether to remove unknown characters from the tokens
         :return: TokenStream: A stream of tokens from the file
         """
-        with open(file_path, 'r', encoding='utf-8') as file:
-            text = file.read()
-            if lower_case:
-                text = text.lower()
-            if remove_punctuation_marks:
-                text = ''.join([char for char in text if char not in ['.', ',', '!', '?', ':', ';', '"', "'"]])
-            if unknown_character_removal:
-                text = ''.join([char for char in text if char.isascii() or char.isspace()])
+        if file_input:
+            with open(input, 'r', encoding='utf-8') as file:
+                text = file.read()
+        else:
+            text = input
+        if lower_case:
+            text = text.lower()
+        if remove_punctuation_marks:
+            text = ''.join([char for char in text if char not in ['.', ',', '!', '?', ':', ';', '"', "'"]])
+        if unknown_character_removal:
+            text = ''.join([char for char in text if char.isascii() or char.isspace()])
         tokens = word_tokenize(text)
         if remove_stop_words:
             tokens = Tokenizer._remove_stop_words(tokens)
@@ -79,9 +83,3 @@ class Tokenizer:
             stemmer = nltk.stem.PorterStemmer()
             tokens = [stemmer.stem(token) for token in tokens]
         return TokenStream(tokens)
-
-
-if __name__ == "__main__":
-    stream = Tokenizer.tokenize('test.txt')
-    while stream.has_next():
-        print(stream.next())
