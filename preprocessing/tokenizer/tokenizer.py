@@ -78,7 +78,7 @@ class Tokenizer:
         if lower_case:
             text = text.lower()
         if remove_punctuation_marks:
-            text = ''.join([char for char in text if char not in ['.', ',', '!', '?', ':', ';', '"', "'"]])
+            text = ''.join([char for char in text if char not in ['.', ',', '!', '?', ':', ';', '"', "'", "{"]])
         if unknown_character_removal:
             text = ''.join([char for char in text if char.isascii() or char.isspace()])
         tokens = word_tokenize(text)

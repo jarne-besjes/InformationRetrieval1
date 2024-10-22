@@ -44,7 +44,7 @@ class CorpusTokenizer:
             self.doc_id = doc_id
 
     def __init__(self, corpus: "Corpus"):
-        self.doc_ids = corpus.get_document_ids()
+        self.doc_ids = sorted(corpus.get_document_ids())
         self.doc_id_i = 0 # index in self.doc_ids
         self.doc_token_stream = None # filled in in _ensure_next_available
         self.corpus = corpus
@@ -57,7 +57,9 @@ class CorpusTokenizer:
             self.doc_token_stream = Tokenizer.tokenize(self.corpus.get_doc_path(self.doc_ids[self.doc_id_i]))
             self.doc_id_i += 1
         while not self.doc_token_stream.has_next() and self.doc_id_i < len(self.doc_ids):
-            self.doc_token_stream = Tokenizer.tokenize(self.corpus.get_doc_path(self.doc_ids[self.doc_id_i]))
+            doc_path = self.corpus.get_doc_path(self.doc_ids[self.doc_id_i])
+            print(f"Reading next file: {doc_path}")
+            self.doc_token_stream = Tokenizer.tokenize(doc_path)
             self.doc_id_i += 1
         return self.doc_token_stream.has_next()
 
@@ -66,8 +68,6 @@ class CorpusTokenizer:
             return None
         assert(self.doc_token_stream is not None)
         token = self.doc_token_stream.next()
-        while '{' in token.token:
-            token = self.doc_token_stream.next()
         return CorpusTokenizer.Token(token.token, token.pos, self.doc_ids[self.doc_id_i-1])
 
 class Corpus:
@@ -113,7 +113,7 @@ class InvertedIndexGenerator:
         shutil.rmtree(folder_output_path, ignore_errors=True)
 
         # Generate inverted index
-        MAX_TOKENS_BLOCK = 100_000
+        MAX_TOKENS_BLOCK = 1_000_000
 
         postings_lists_dict = PostingsListsDict()
         block_n = 0
@@ -236,5 +236,19 @@ class InvertedIndexGenerator:
         self.merge_all_blocks(level+1, output_path)
 
 if __name__ == "__main__":
+    import time
+
+    start_time = time.time()
     index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
     index_gen.generate_spimi(folder_output_path='inverted_index')
+    # corpus = Corpus('./full_docs_small')
+    # tokenizer = CorpusTokenizer(corpus)
+    # while (token := tokenizer.next()) != None:
+    #     # print(token.token)
+    #     pass
+    
+    end_time = time.time()
+
+    # Calculate the elapsed time
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time} seconds")

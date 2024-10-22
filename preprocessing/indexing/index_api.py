@@ -1,4 +1,5 @@
 import json
+from math import sqrt
 import os
 
 class PostingsList:
@@ -42,6 +43,28 @@ class IndexApi:
     def get_document_ids(self) -> list[int]:
         return [int(doc_id) for doc_id in self._doc_id_to_doc_name.keys()]
 
+def doc_vector_lengths():
+    import math
+
+    api = IndexApi('inverted_index')
+    doc_ids = api.get_document_ids()
+
+    scores = [0.0] * len(doc_ids)
+    for term in api._dictionary.keys():
+        postings_list = api.get_postings_list(term)
+        df = postings_list.get_document_frequency()
+        idf_w = math.log10(len(scores)/df)
+        for doc in postings_list._postings.keys():
+            tf = postings_list._postings[doc]
+            w = (1 + math.log10(tf)) * idf_w
+            scores[int(doc)] += w**2
+    for i in range(0, len(scores)):
+        scores[i] = sqrt(scores[i])
+    
+    for i in range(0, len(scores)):
+        print(f'doc: {i}, veclength: {scores[i]}')
+
+
 if __name__ == "__main__":
     api = IndexApi('inverted_index')
     doc_ids = api.get_document_ids()
@@ -56,3 +79,5 @@ if __name__ == "__main__":
     print(tf, ' ', df)
 
     print(api.get_sorted_vocabulary())
+
+    doc_vector_lengths()
