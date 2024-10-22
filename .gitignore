@@ -166,3 +166,7 @@ full_docs_small/
 inverted_index/
 doc_vectors.npz
 queries/
+.vscode/
+queries.csv
+query_results.txt
+results.csv

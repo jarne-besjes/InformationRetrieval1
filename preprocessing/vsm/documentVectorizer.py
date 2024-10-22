@@ -16,10 +16,8 @@ class DocumentVectorizer:
         for term_i, term in enumerate(vocab):
             postings_list = self.indexAPI.get_postings_list(term)
             tf = postings_list.get_term_frequency(doc_id)
-            if tf == 0:
-                tf_vector[term_i] = 0
-            else:
-                tf_vector[term_i] = 1 + math.log10(tf)
+            max_tf = max(postings_list._postings.values())
+            tf_vector[term_i] = 0.5 + (0.5*tf)/(max_tf)
         return tf_vector
         
     def compute_doc_matrix(self) -> np.matrix:
@@ -41,14 +39,10 @@ class DocumentVectorizer:
             tf_vector = self.compute_tf_vector(doc_id)
             col = doc_matrix[:, doc_id-1]
             tf_idf_vector = np.multiply(col, tf_vector)
+            # Normalize vector
+            norm = np.linalg.norm(tf_idf_vector, ord=2)
+            tf_idf_vector /= norm
             doc_matrix[:, doc_id-1] = tf_idf_vector
-        # Normalize vectors
-        for doc_id in range(N):
-            col = doc_matrix[:, doc_id]
-            norm = np.linalg.norm(col, ord=2)
-            if norm != 0:
-                normalized = col/np.linalg.norm(col, ord=2)
-                doc_matrix[:, doc_id] = normalized
         # Convert to sparse format
         sparse_matrix = sparse.csr_matrix(doc_matrix)
         sparse.save_npz("doc_vectors", sparse_matrix)
