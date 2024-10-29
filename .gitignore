@@ -189,3 +189,8 @@ smallqueries.csv
 smallresults.csv
 lucene_small_out/dict.json
 lucene_small_out/inverted_index.json
+full_docs_small_index/corpus_meta.txt
+full_docs_small_index/dict.json
+full_docs_small_index/inverted_index.json
+full_docs_small_index/l0/dict_0.txt
+full_docs_small_index/l0/dict_1.txt

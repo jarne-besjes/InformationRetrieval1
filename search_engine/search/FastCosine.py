@@ -1,5 +1,5 @@
-from preprocessing.indexing.index_api import IndexApi
-from preprocessing.tokenizer import Tokenizer
+from search_engine.preprocessing.indexing.index_api import IndexApi
+from search_engine.preprocessing.tokenizer import Tokenizer
 import numpy as np
 import math
 import pandas as pd
