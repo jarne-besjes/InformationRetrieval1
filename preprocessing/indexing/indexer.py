@@ -14,7 +14,8 @@ import shutil
 # same name as the documents folder but with a "_index" postfix
 def run_indexer(corpus_path: str):
     index_gen = InvertedIndexGenerator(corpus_path=corpus_path)
-    index_output_path = corpus_path + "_index"
+    index_output_path = corpus_path.rstrip('/') + "_index"
+    print(f"Writing index to: {index_output_path}")
     index_gen.generate_spimi(folder_output_path=index_output_path)
 
 
@@ -245,7 +246,7 @@ class InvertedIndexGenerator:
 
 
 if __name__ == "__main__":
-    run_indexer(corpus_path="./full_docs_small")
+    run_indexer(corpus_path="./full_docs_small/")
 
     # import time
 
