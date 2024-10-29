@@ -48,7 +48,6 @@ class QueryProcessor:
         return [int(doc+1) for doc in best]
     
 if __name__ == "__main__":
-    print(Path.cwd())
     queries = pd.read_csv("queries.csv")
     query_ids = queries["Query number"]
     results = pd.read_csv("results.csv")

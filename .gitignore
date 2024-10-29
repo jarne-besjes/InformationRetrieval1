@@ -180,3 +180,12 @@ queries/
 queries.csv
 query_results.txt
 results.csv
+lengths.npy
+big-lengths.npy
+output.txt
+queries.tsv
+small-doc-lengths.npy
+smallqueries.csv
+smallresults.csv
+lucene_small_out/dict.json
+lucene_small_out/inverted_index.json
