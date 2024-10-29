@@ -24,13 +24,14 @@ if __name__ == "__main__":
 
     query = args.query
     n = args.n
-    docs_folders = args.docs_folder
+    docs_folder = args.docs_folder
 
     if not args.no_index:
         # Check if the inverted index folder exists and is not older than 1 day
-        if not os.path.exists('inverted_index') or (time.time() - os.path.getmtime('inverted_index')) > 86400:
+        index_folder = docs_folder.rstrip("/") + "_index"
+        if not os.path.exists(index_folder) or (time.time() - os.path.getmtime(index_folder) )> 86400:
             print('Indexing...', file=sys.stderr)
-            indexer.run_indexer()
+            indexer.run_indexer(docs_folder)
             print('Indexing done', file=sys.stderr)
 
     # vectorize
