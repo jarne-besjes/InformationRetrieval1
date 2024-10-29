@@ -11,6 +11,11 @@ import ijson
 import shutil
 
 
+def generate_inverted_index(corpus_path: str, index_output_path: str):
+    index_gen = InvertedIndexGenerator(corpus_path=corpus_path)
+    index_gen.generate_spimi(folder_output_path=index_output_path)
+
+
 class PostingsListsDict:
     def __init__(self):
         # self.dictionary: dict[str, dict[int, list[int]]] = dict()
@@ -58,7 +63,8 @@ class CorpusTokenizer:
             self.doc_id_i += 1
         while not self.doc_token_stream.has_next() and self.doc_id_i < len(self.doc_ids):
             doc_path = self.corpus.get_doc_path(self.doc_ids[self.doc_id_i])
-            print(f"Reading next file: {doc_path}")
+            if self.doc_id_i % 1000 == 0:
+                print(f"Reading file: {doc_path}")
             self.doc_token_stream = Tokenizer.tokenize(doc_path)
             self.doc_id_i += 1
         return self.doc_token_stream.has_next()
@@ -235,20 +241,23 @@ class InvertedIndexGenerator:
             self.merge(blocks[i], blocks[i+1], merged_output_path, i, len(blocks)==2, output_path)
         self.merge_all_blocks(level+1, output_path)
 
+
 if __name__ == "__main__":
-    import time
+    generate_inverted_index(corpus_path="./full_docs_small", index_output_path="./small_index")
 
-    start_time = time.time()
-    index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
-    index_gen.generate_spimi(folder_output_path='inverted_index')
-    # corpus = Corpus('./full_docs_small')
-    # tokenizer = CorpusTokenizer(corpus)
-    # while (token := tokenizer.next()) != None:
-    #     # print(token.token)
-    #     pass
+    # import time
+
+    # start_time = time.time()
+    # index_gen = InvertedIndexGenerator(corpus_path='./full_docs_small')
+    # index_gen.generate_spimi(folder_output_path='inverted_index')
+    # # corpus = Corpus('./full_docs_small')
+    # # tokenizer = CorpusTokenizer(corpus)
+    # # while (token := tokenizer.next()) != None:
+    # #     # print(token.token)
+    # #     pass
     
-    end_time = time.time()
+    # end_time = time.time()
 
-    # Calculate the elapsed time
-    elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time} seconds")
+    # # Calculate the elapsed time
+    # elapsed_time = end_time - start_time
+    # print(f"Elapsed time: {elapsed_time} seconds")

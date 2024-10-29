@@ -3,6 +3,7 @@ import re
 import nltk.corpus
 from nltk.tokenize import word_tokenize
 nltk.download('stopwords')
+nltk.download('punkt_tab')
 
 class Token:
     def __init__(self, token: str, pos: int):
