@@ -10,9 +10,11 @@ import os.path
 import ijson
 import shutil
 
-
-def generate_inverted_index(corpus_path: str, index_output_path: str):
+# Run the inverted index generator. It writes the index file(s) to a new folder with the
+# same name as the documents folder but with a "_index" postfix
+def run_indexer(corpus_path: str):
     index_gen = InvertedIndexGenerator(corpus_path=corpus_path)
+    index_output_path = corpus_path + "_index"
     index_gen.generate_spimi(folder_output_path=index_output_path)
 
 
@@ -64,7 +66,7 @@ class CorpusTokenizer:
         while not self.doc_token_stream.has_next() and self.doc_id_i < len(self.doc_ids):
             doc_path = self.corpus.get_doc_path(self.doc_ids[self.doc_id_i])
             if self.doc_id_i % 1000 == 0:
-                print(f"Reading file: {doc_path}")
+                print(f"Processed {self.doc_id_i} documents, currently processing: {doc_path}")
             self.doc_token_stream = Tokenizer.tokenize(doc_path)
             self.doc_id_i += 1
         return self.doc_token_stream.has_next()
@@ -243,7 +245,7 @@ class InvertedIndexGenerator:
 
 
 if __name__ == "__main__":
-    generate_inverted_index(corpus_path="./full_docs_small", index_output_path="./small_index")
+    run_indexer(corpus_path="./full_docs_small")
 
     # import time
 
