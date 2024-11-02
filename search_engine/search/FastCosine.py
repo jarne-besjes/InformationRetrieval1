@@ -69,6 +69,29 @@ class QueryProcessor:
         top_k_indices = np.argsort(scores)[-k:][::-1]
         return [int(doc + 1) for doc in top_k_indices]
 
+def average_x_at_k(retrieved, relevant, k, precision=True):
+    # Helper function to calculate AP@k and AR@k
+    count = 0
+    sum = 0
+    for i in range(1, k+1):
+        if i <= len(retrieved) and retrieved[i - 1] in relevant:
+            count += 1
+            if precision:
+                sum += count / i
+            else:
+                sum += count / len(retrieved)
+    return sum / count if count > 0 else 0
+
+def max_at_k(queries, results, processor, k, precision=True):
+    # Function to calculate MAP@k and MAR@k
+    averages = []
+    for query_id, query in tqdm(queries.itertuples(index=False), total=len(queries)):
+        retrieved = processor.get_top_k_results(query, k)
+        relevant = results[results["Query_number"] == query_id]["doc_number"].to_list()
+        average = average_x_at_k(retrieved, relevant, k, precision)
+        averages.append(average)
+    return np.mean(averages)
+
 if __name__ == "__main__":
     queries = pd.read_csv("queries.tsv", sep="\t")
     query_ids = queries["Query number"]
@@ -76,31 +99,17 @@ if __name__ == "__main__":
     queryProcessor = QueryProcessor("big-inverted-index")
     # queryProcessor.compute_doc_lengths("big-lengths")
     # queryProcessor.lengths = np.load("big-lengths.npy")
-    max_k = 20
-    precision_at_k = np.zeros((max_k, len(queries)))
-    recall_at_k = np.zeros((max_k, len(queries)))
-    with open("output.txt", "w") as file:
-        for i, (query_id, query) in tqdm(enumerate(queries.itertuples(index=False)), total = len(queries), desc="Processing queries"):
-            doc_ids = queryProcessor.get_top_k_results(query, max_k)
-            file.write("Got: " + str(doc_ids))
-            expected = results[results["Query_number"] == query_id]["doc_number"]
-            file.write(" Expected: " + str([val for val in expected]) + "\n")
-            for k in range(1, max_k+1):
-                relevant = 0
-                docs_k = doc_ids[:k]
-                for doc in expected:
-                    if doc in docs_k:
-                        relevant += 1
-                precision_at_k[k-1, i] = relevant / k
-                recall_at_k[k-1, i] = relevant / len(expected)
-
-        mean_precision_at_k = np.mean(precision_at_k, axis=1)
-        mean_recall_at_k = np.mean(recall_at_k, axis=1)
-
+    maps = []
+    mars = []
+    for k in tqdm(range(1, 11)):
+        map = max_at_k(queries, results, queryProcessor, k, precision=True)
+        mar = max_at_k(queries, results, queryProcessor, k, precision=False)
+        maps.append(map)
+        mars.append(mars)
     plt.figure(figsize=(10, 6))
-    plt.plot(mean_recall_at_k, mean_precision_at_k, marker='o', color='b')
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
+    plt.plot(maps, mars, marker='o', color='b')
+    plt.xlabel("Precision")
+    plt.ylabel("Recall")
     plt.title("Precision-Recall Curve")
     plt.grid()
     plt.show()
