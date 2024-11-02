@@ -75,14 +75,14 @@ if __name__ == "__main__":
         for i, (query_id, query) in tqdm(enumerate(queries.itertuples(index=False)), total = len(queries), desc="Running Benchmark..."):
             for ki, k in enumerate([3, 10]):
                 precisions = []
+                retrieved = queryProcessor.get_top_k_results(query, k)
                 for i in range(k):
-                    retrieved = queryProcessor.get_top_k_results(query, k)
                     relevant = expected_results[expected_results["Query_number"] == query_id]["doc_number"].to_list()
-                    precisions.append(calculate_precision_at_k(retrieved, relevant, k))
+                    precisions.append(calculate_precision_at_k(retrieved[:i], relevant, k))
                 avg_precisions[ki][i] = np.mean(precisions)
             
         for i in range(2):
-            print(f"Mean avg precision at {3 if i == 0 else 10}: ", np.mean(precisions[i]))
+            print(f"Mean avg precision at {3 if i == 0 else 10}: ", np.mean(avg_precisions[i]))
 
     else:
         # search
