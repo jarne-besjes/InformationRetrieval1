@@ -21,6 +21,15 @@ argparser.add_argument('--no-index', action='store_true', help='Do not index the
 argparser.add_argument('--docs-folder', type=str, help='The location of the folder where all documents are stored', required=True)
 argparser.add_argument('--mode', type=str, help='Select mode: search or bench', required=True)
 
+def calculate_precision_at_k(retrieved, relevant, k):
+    count = 0
+    sum = 0
+    for i in range(1, k+1):
+        if i <= len(retrieved) and retrieved[i - 1] in relevant:
+            count += 1
+            sum += count / i
+    return sum / count if count > 0 else 0
+
 if __name__ == "__main__":
     try:
         args = argparser.parse_args()
@@ -58,29 +67,22 @@ if __name__ == "__main__":
         queries = pd.read_csv("queries.tsv", sep="\t")
         query_ids = queries["Query number"]
 
-        precisions = np.zeros((2, len(queries)))
+        avg_precisions = np.zeros((2, len(queries)))
         recalls = np.zeros((2, len(queries)))
 
         expected_results = pd.read_csv("expected_results.csv")
 
         for i, (query_id, query) in tqdm(enumerate(queries.itertuples(index=False)), total = len(queries), desc="Running Benchmark..."):
             for ki, k in enumerate([3, 10]):
-                doc_ids = queryProcessor.get_top_k_results(query, k)
-                expected = expected_results[expected_results["Query_number"] == query_id]["doc_number"]
-                relevant = 0
-                docs_k = doc_ids[:k]
-                for doc in expected:
-                    if doc in docs_k:
-                        relevant += 1
-                precision = relevant / k
-                recall = relevant / len(expected)
-
-                precisions[ki, i] = precision
-                recalls[ki, i] = recall
-
+                precisions = []
+                for i in range(k):
+                    retrieved = queryProcessor.get_top_k_results(query, k)
+                    relevant = expected_results[expected_results["Query_number"] == query_id]["doc_number"].to_list()
+                    precisions.append(calculate_precision_at_k(retrieved, relevant, k))
+                avg_precisions[ki][i] = np.mean(precisions)
+            
         for i in range(2):
-            print(f"Mean precision at {3 if i == 0 else 10}: ", np.mean(precisions[i]))
-            print(f"Mean recall at {3 if i == 0 else 10}: ", np.mean(recalls[i]))
+            print(f"Mean avg precision at {3 if i == 0 else 10}: ", np.mean(precisions[i]))
 
     else:
         # search
