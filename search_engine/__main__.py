@@ -28,7 +28,17 @@ def calculate_precision_at_k(retrieved, relevant, k):
         if i <= len(retrieved) and retrieved[i - 1] in relevant:
             count += 1
             sum += count / i
-    return sum / count if count > 0 else 0
+    return sum / count if count > 0 else -1
+
+
+def calculate_recall_at_k(retrieved, relevant, k):
+    count = 0
+    sum = 0
+    for i in range(1, k+1):
+        if i <= len(retrieved) and retrieved[i - 1] in relevant:
+            count += 1
+            sum += count / len(relevant)
+    return sum / count if count > 0 else -1
 
 if __name__ == "__main__":
     try:
@@ -67,22 +77,30 @@ if __name__ == "__main__":
         queries = pd.read_csv("queries.tsv", sep="\t")
         query_ids = queries["Query number"]
 
-        avg_precisions = np.zeros((2, len(queries)))
-        recalls = np.zeros((2, len(queries)))
+        avg_precisions = []
+        avg_recalls = []
 
         expected_results = pd.read_csv("expected_results.csv")
 
         for i, (query_id, query) in tqdm(enumerate(queries.itertuples(index=False)), total = len(queries), desc="Running Benchmark..."):
             for ki, k in enumerate([3, 10]):
                 precisions = []
+                recalls = []
                 retrieved = queryProcessor.get_top_k_results(query, k)
                 for i in range(k):
                     relevant = expected_results[expected_results["Query_number"] == query_id]["doc_number"].to_list()
-                    precisions.append(calculate_precision_at_k(retrieved[:i], relevant, k))
-                avg_precisions[ki][i] = np.mean(precisions)
+                    precision = calculate_precision_at_k(retrieved[:i], relevant, k)
+                    recall = calculate_recall_at_k(retrieved[:i], relevant, k)
+                    if precision != -1:
+                        precisions.append(precision)
+                    if recall != -1:
+                        recalls.append(recall)
+                avg_precisions.append(np.mean(precisions))
+                avg_recalls.append(np.mean(recalls))
             
         for i in range(2):
             print(f"Mean avg precision at {3 if i == 0 else 10}: ", np.mean(avg_precisions[i]))
+            print(f"Mean avg recall at {3 if i == 0 else 10}: ", np.mean(avg_recalls[i]))
 
     else:
         # search
